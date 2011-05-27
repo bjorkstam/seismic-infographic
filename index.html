@@ -121,9 +121,8 @@
 				      , now = new Date(Date.now())
 				      , tmp_eq = eqObj[sortable[i][0]]
 				      , total = tmp_eq.length
-				      , bar_width = $('.region').css('width') - 6
+				      , bar_width = $('.region').width() - 8
 				      ;
-				      
 				    $('section#regions').append('<div class="region"><span class="bar"></span><p style="width: '+(bar_width - sortable[i][1]*multiplier)+'px">'+sortable[i][0]+'</p></div>');
 				    
 				    // Lets cause a short delay before the sidebar starts animating so the user has a chance to see it
