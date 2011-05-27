@@ -1,0 +1,676 @@
+<!DOCTYPE html> 
+<html> 
+	<head>
+	    <meta charset="utf8"> 
+		<title>HTML5 Seismic Infographic</title>
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+		<script type="text/javascript">
+
+		
+    	(function() {
+    	    
+    	    // Demo by Mikael Bjorkstam -- http://bjorkst.am/
+    	    // @bjorkstam
+    	    // Using data from USGS: http://earthquake.usgs.gov/earthquakes/catalogs/eqs7day-M5.txt
+    	    
+    	    // Object that holds earthquake data
+    		var eqObj = {};
+    		
+
+
+    		// FOUND THE FOLLOWING CODE SAMPLE ONLINE:
+    		// http://stackoverflow.com/questions/1293147/javascript-code-to-parse-csv-data
+    		// Credit goes to whoever wrote it! :-)
+    		// -------
+    		// This will parse a delimited string into an array of
+		    // arrays. The default delimiter is the comma, but this
+		    // can be overriden in the second argument.
+		    function CSVToArray( strData, strDelimiter ){
+		        // Check to see if the delimiter is defined. If not,
+		        // then default to comma.
+		        strDelimiter = (strDelimiter || ",");
+		        // Create a regular expression to parse the CSV values.
+		        var objPattern = new RegExp(
+		                (
+		                        // Delimiters.
+		                        "(\\" + strDelimiter + "|\\r?\\n|\\r|^)" +
+		                        // Quoted fields.
+		                        "(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|" +
+		                        // Standard fields.
+		                        "([^\"\\" + strDelimiter + "\\r\\n]*))"
+		                ),
+		                "gi"
+		                );
+		        // Create an array to hold our data. Give the array
+		        // a default empty first row.
+		        var arrData = [[]];
+		        // Create an array to hold our individual pattern
+		        // matching groups.
+		        var arrMatches = null;
+		        // Keep looping over the regular expression matches
+		        // until we can no longer find a match.
+		        while (arrMatches = objPattern.exec( strData )){
+		                // Get the delimiter that was found.
+		                var strMatchedDelimiter = arrMatches[ 1 ];
+		                // Check to see if the given delimiter has a length
+		                // (is not the start of string) and if it matches
+		                // field delimiter. If id does not, then we know
+		                // that this delimiter is a row delimiter.
+		                if (
+		                        strMatchedDelimiter.length &&
+		                        (strMatchedDelimiter != strDelimiter)
+		                        ){
+
+		                        // Since we have reached a new row of data,
+		                        // add an empty row to our data array.
+		                        arrData.push( [] );
+
+		                }
+
+
+		                // Now that we have our delimiter out of the way,
+		                // let's check to see which kind of value we
+		                // captured (quoted or unquoted).
+		                if (arrMatches[ 2 ]){
+
+		                        // We found a quoted value. When we capture
+		                        // this value, unescape any double quotes.
+		                        var strMatchedValue = arrMatches[ 2 ].replace(
+		                                new RegExp( "\"\"", "g" ),
+		                                "\""
+		                                );
+
+		                } else {
+
+		                        // We found a non-quoted value.
+		                        var strMatchedValue = arrMatches[ 3 ];
+
+		                }
+
+
+		                // Now that we have our value string, let's add
+		                // it to the data array.
+		                arrData[ arrData.length - 1 ].push( strMatchedValue );
+		        }
+
+		        // Return the parsed data.
+		        return( arrData );
+		    }
+		    
+		    
+		    // render() will be called once the dataset has been loaded and parsed.
+		    // Essentially, this generates a bunch of HTML and pushes it into the right place
+		    function render() {
+		        
+		        // Lets push our data into an array instead of an object to maintain some order
+		        var sortable = [];
+		        
+				for (var region in eqObj) {
+					sortable.push([region, eqObj[region].length]);
+				}
+				
+				// Regions with more earthquake first
+				sortable.sort(function(a, b) {return b[1] - a[1]});
+				
+				// We don't want our sidebar to animate to more than 120px width
+				var multiplier = 120 / sortable[0][1];
+				
+				// Lets loop through each region and create the chart structure
+				for (var i=0, len=sortable.length; i < len; i++) (function(i) {
+				    var days_ago = [0,0,0,0,0,0,0]
+				      , now = new Date(Date.now())
+				      , tmp_eq = eqObj[sortable[i][0]]
+				      , total = tmp_eq.length
+				      , bar_width = $('.region').css('width') - 6
+				      ;
+				      
+				    $('section#regions').append('<div class="region"><span class="bar"></span><p style="width: '+(bar_width - sortable[i][1]*multiplier)+'px">'+sortable[i][0]+'</p></div>');
+				    
+				    // Lets cause a short delay before the sidebar starts animating so the user has a chance to see it
+				    setTimeout(function() {
+				        $($('.region')[i]).find('.bar').css('width',  (sortable[i][1]*multiplier)+'px');
+				    }, 600);
+				    
+				    // Title
+				    $('section#graphs').append('<div class="info_box"><h3>'+sortable[i][0]+'</h3><h4>'+total+' earthquake'+ (total === 1 ? '' : 's') +'</h4><div class="bargroup"></div></div>');
+				    
+				    var bargroup = $($('section#graphs .info_box')[i]).find('.bargroup');
+				    
+					for (var x=0; x < total; x++) {
+					    days_ago[Math.abs(tmp_eq[x].date.getDay() - now.getDay())]++;
+					}
+					// 7 days a week, lets do this!
+				    for (var n = 0; n < 7; n++) {
+				        
+				        // Determine the time label
+				        var time_label = n+" days ago";
+				        
+				        if (n===0) {
+				            time_label = "Today";
+				        } else if (n===1) {
+				            time_label = "Yesterday";
+				        }
+                        
+                        // This adds a nice little pole for each day -- height depending on how many earthquakes
+				        $(bargroup).append('<div class="bar"><div class="eqbase"><p>'+days_ago[n]+'</p><div class="eqbasetop"></div></div><div class="eqbar clearheight" style="height: '+(((days_ago[n] > 0) ? 20 : 0) + 20*days_ago[n])+'px"><div class="eqtop"></div></div><p class="label">'+time_label+'</p></div>');
+				    }
+				}(i));
+				
+				// The following code either loads or removes a regions display on the screen
+				function animateRegion(isLoading) {
+				    var info_box = $('section#graphs .info_box')[$(this).index()];
+				    
+			        if (isLoading) {
+			            $(info_box).addClass('show');
+			        } else {
+			            $(info_box).removeClass('show');
+			        }
+			        
+			        // We also want a delay so that the bar doesn't start animating until
+			        // the whole "chart" is displayed on screen
+				    setTimeout(function() {
+				        var eqbar = $(info_box).find('.eqbar');
+				        if (isLoading) {
+    			            eqbar.removeClass('clearheight')
+    			        } else {
+    			            eqbar.addClass('clearheight');
+    			        }
+				    }, 700);
+				}
+				// .hover(...) is not a good idea in this context:
+				// if the mouseposition is over a region's sidebar
+				// when the page loads, shit will happen.
+				// Use .mouseover() and .mouseout() instead
+				
+				// Mouseover event
+				$('.region').mouseover(function() {
+				    animateRegion.call(this, true);
+				});
+				
+				// Mouseout event
+				$('.region').mouseout(function() {
+				    animateRegion.call(this, false);
+				});
+				
+		    }
+		    // Loads data asynchronously -- Cannot use jsonp because the data set is in CSV-format
+		    // Bypassing this by loading the dataset from data.php and dumping the content
+		    // Calls render when data has been retrieved and eqObj populated
+    		function load_data() {
+    			$.ajax({
+				  url: 'data.php',
+				  type: 'html',
+				  method: 'get',
+				  success: function(raw_data) {
+    				var eqs = CSVToArray(raw_data).splice(1);
+    				for (var i=0; i < eqs.length-1; i++) (function(i) {
+    					var cur = eqs[i];
+    					var region = cur[9].split(/,\s/)[1] || cur[9];
+    					if (!eqObj.hasOwnProperty(region)) {
+    						eqObj[region] = [];
+    					}
+    					eqObj[region].push({
+    						magnitude: cur[6],
+    						location: cur[9],
+    						date: new Date(cur[3])
+    					});
+    				})(i);
+    				
+    				render();
+    			}});    			
+    		}
+            
+            // Trigger the data to load!
+    		load_data();
+    		
+    	}());
+		</script> 
+		<style> 
+		@font-face {
+		    font-family: 'LeagueGothicRegular';
+		    src: url('fonts/League_Gothic-webfont.eot');
+		    src: url('fonts/fonts/League_Gothic-webfont.eot?#iefix') format('embedded-opentype'),
+		         url('fonts/League_Gothic-webfont.woff') format('woff'),
+		         url('fonts/League_Gothic-webfont.ttf') format('truetype'),
+		         url('fonts/League_Gothic-webfont.svg#LeagueGothicRegular') format('svg');
+		    font-weight: normal;
+		    font-style: normal;
+		}
+		* {
+			padding:0;
+			margin:0;
+			line-height:1;
+		}
+		html, body {
+			width: 100%;
+			height: 100%;
+			overflow-x:hidden;
+			background-attachment: fixed !important;
+			background-image: -webkit-gradient(
+			    linear,
+			    right bottom,
+			    left top,
+			    color-stop(0, rgb(72,75,49)),
+			    color-stop(1, rgb(118,123,87))
+			);
+			background-image: -moz-linear-gradient(
+			    right bottom,
+			    rgb(72,75,49) 0%,
+			    rgb(118,123,87) 100%
+			);
+		}
+		header, footer, section {
+			display: block;
+		}
+
+		header h1, header h2 {
+			font-family: LeagueGothicRegular, Helvetica;
+			text-transform: uppercase;
+			font-size: 90px;
+			color: #fff;
+			text-shadow: 2px 2px 2px #484b31;
+			float:left;
+			font-weight:400;
+			line-height:90px;
+		}
+		header h2 {
+			color: #d9dcc3;
+			font-size:38px;
+			margin-left: 10px;
+			line-height: 1;
+			margin-top:6px;
+		}
+		footer {
+			font-family: 'Trebuchet MS', Helvetica;
+			font-size: 12px;
+            font-weight: bold;
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			height: 18px;
+			text-transform: uppercase;
+			line-height: 18px;
+			color: #313322;
+			text-align: center;
+			cursor: default;
+			text-shadow: 1px 1px 1px #767B57;
+		}
+		footer a {
+			color: #313322;
+
+		}
+		footer:hover, footer:hover a {
+		    text-shadow: 1px 1px 1px #444;
+			color: orange;
+		}
+		footer a:hover {
+		    color: darkorange;
+		}
+
+
+		.cf {
+		    /* for IE 6/7 */
+		    *zoom: expression(this.runtimeStyle.zoom="1", this.appendChild(document.createElement("br")).style.cssText="clear:both;font:0/0 serif");
+		    /* non-JS fallback */
+		    *zoom: 1;
+		}
+
+		.cf:before,
+		.cf:after {
+		    content: "";
+		    display: table;
+		}
+
+		.cf:after {
+		    clear: both;
+		}
+		
+		.region {
+		    position: relative;
+		    width: 265px;
+		    height: 20px;
+		    border: 1px solid #555;
+		    background: rgba(0,255,0,.3);
+		    overflow:hidden;
+		    margin-bottom: 6px;
+		    background-image: -webkit-gradient(
+                linear,
+                left bottom,
+                left top,
+                color-stop(0, rgb(169,181,154)),
+                color-stop(1, rgb(147,153,118))
+            );
+            background-image: -moz-linear-gradient(
+                center bottom,
+                rgb(169,181,154) 0%,
+                rgb(147,153,118) 100%
+            );
+            
+            color: #000;
+		    text-shadow: 1px 1px 1px #ddd;
+		    opacity: .7;
+		    -webkit-transition: opacity .15s ease-in;
+		       -moz-transition: opacity .15s ease-in;
+		         -o-transition: opacity .15s ease-in;
+		            transition: opacity .15s ease-in;
+
+		    cursor: default;
+		    
+		    -webkit-border-radius: 4px;
+		       -moz-border-radius: 4px;
+		         -o-border-radius: 4px;
+		            border-radius: 4px;
+
+		    -webkit-box-shadow: 1px 1px 2px #444;
+               -moz-box-shadow: 1px 1px 2px #444;
+                 -o-box-shadow: 1px 1px 2px #444;
+                    box-shadow: 1px 1px 2px #444;
+		}
+		.region:hover {
+		    opacity: 1.0;
+		}
+		.region > p {
+		    position: absolute;
+		    top:0;
+		    right:4px;
+		    line-height: 20px;
+		    z-index:10;
+		    text-transform: capitalize;
+		    text-align: right;
+		    
+		    overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+		}
+		.region > span.bar {
+		    z-index: 9;
+		    
+		    -webkit-border-radius: 4px 0 0 4px;
+		       -moz-border-radius: 4px 0 0 4px;
+		         -o-border-radius: 4px 0 0 4px;
+		            border-radius: 4px 0 0 4px;
+		    
+		    position: absolute;
+		    width:0;
+		    height:20px;
+		    top:0;
+		    botom:0;
+		    left:0;
+		    border-right: 1px solid #777;
+		    background-image: -webkit-gradient(
+                linear,
+                left bottom,
+                left top,
+                color-stop(1, rgb(159,189,121)),
+                color-stop(0, rgb(132,143,77))
+            );
+            background-image: -moz-linear-gradient(
+                center bottom,
+                rgb(132,143,77) 0%,
+                rgb(159,189,121) 100%
+            );
+            
+            -webkit-box-shadow: 1px 0 3px #888;
+               -moz-box-shadow: 1px 0 3px #888;
+                 -o-box-shadow: 1px 0 3px #888;
+                    box-shadow: 1px 0 3px #888;
+            
+            -webkit-transition: all 1.25s ease-in; 
+               -moz-transition: all 1.25s ease-in; 
+                 -o-transition: all 1.25s ease-in; 
+                    transition: all 1.25s ease-in;
+		}
+		section#graphs {
+		    overflow: hidden;
+		    display: block;
+		    width: 500px;
+		    position: absolute;
+		    left: 300px;
+		    padding-left: 60px;
+		    top: 130px;
+		    height: 500px;
+		    background: rgba(255,255,0,0);
+		}
+		.info_box {
+		    position: absolute;
+		    width: 380px;
+		    height: 430px;
+		    padding: 0 30px;
+		    background: rgba(255,0,0,0);
+		    top: 20px;
+		    text-align: center;
+		    
+		    -webkit-transform: translate(520px);
+		       -moz-transform: translate(520px);
+		         -o-transform: translate(520px);
+		            transform: translate(520px);
+		    
+		    -webkit-transition: all 600ms cubic-bezier(0.600, 0.040, 0.980, 0.335); 
+               -moz-transition: all 600ms cubic-bezier(0.600, 0.040, 0.980, 0.335); 
+                 -o-transition: all 600ms cubic-bezier(0.600, 0.040, 0.980, 0.335); 
+                    transition: all 600ms cubic-bezier(0.600, 0.040, 0.980, 0.335); /* easeInCirc */
+
+            -webkit-transition-timing-function: cubic-bezier(0.600, 0.040, 0.980, 0.335); 
+               -moz-transition-timing-function: cubic-bezier(0.600, 0.040, 0.980, 0.335); 
+                 -o-transition-timing-function: cubic-bezier(0.600, 0.040, 0.980, 0.335); 
+                    transition-timing-function: cubic-bezier(0.600, 0.040, 0.980, 0.335); /* easeInCirc */
+		}
+		.info_box > p {
+		    z-index:0;
+		    position: absolute;
+		    right: 0;
+		    left: 0;
+		    font-size: 400px;
+
+		    color: rgba(0,0,0, 0.0);
+		    font-family: arial, verdana;
+		    
+		    -webkit-transition: all 1.2s ease-in; 
+               -moz-transition: all 1.2s ease-in; 
+                 -o-transition: all 1.2s ease-in; 
+                    transition: all 1.2s ease-in;
+		}
+		.info_box.show > p {
+		    color: rgba(0,0,0, 0.05);
+		}
+		.info_box h3, .info_box h4 {
+		    font-weight: 100;
+		    font-family: LeagueGothicRegular, Helvetica;
+			text-transform: uppercase;
+			font-size: 40px;
+			color: #fff;
+			
+			text-shadow: 2px 2px 2px #484b31;
+		}
+		.info_box h4 {
+		    font-size: 22px;
+		    color: #d9dcc3;
+		}
+		.show {
+		    -webkit-transform: translate(0);
+		       -moz-transform: translate(0);
+		         -o-transform: translate(0);
+		            transform: translate(0);
+		}
+		.clearheight {
+		    height:0 !important;
+		}
+		div.bar {
+		    position: relative;
+		    float:left;
+		    width: 37px;
+		    height: 250px;
+		}
+		div.bar + .bar {
+		    margin-left:20px;
+		}
+		.bargroup {
+		    margin-top: 40px;
+		}
+		.eqbase {
+		    background: #a88761; /* Old browsers */
+            background: -moz-linear-gradient(left, #a88761 0%, #514019 100%); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, right top, color-stop(0%,#a88761), color-stop(100%,#514019)); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(left, #a88761 0%,#514019 100%); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(left, #a88761 0%,#514019 100%); /* Opera11.10+ */
+            background: -ms-linear-gradient(left, #a88761 0%,#514019 100%); /* IE10+ */
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#A88761', endColorstr='#514019',GradientType=1 ); /* IE6-9 */
+            background: linear-gradient(left, #a88761 0%,#514019 100%); /* W3C */
+            
+            position:absolute;
+		    left: 1;
+		    bottom: 0;
+		    width: 35px;
+		    height: 30px;
+		    
+		    
+            -webkit-transition: all .4s ease-in; 
+               -moz-transition: all .4s ease-in; 
+                 -o-transition: all .4s ease-in; 
+                    transition: all .4s ease-in;
+            
+            -webkit-border-radius: 80px/35px;
+               -moz-border-radius: 80px/35px;
+                 -o-border-radius: 80px/35px;
+                    border-radius: 80px/35px;
+            
+            -webkit-box-shadow: 0 2px 2px #382E10;
+               -moz-box-shadow: 0 2px 2px #382E10;
+                 -o-box-shadow: 0 2px 2px #382E10;
+                    box-shadow: 0 2px 2px #382E10;
+            
+            z-index:0;
+		}
+		.eqbase > p {
+		    z-index: 20;
+		    margin-top: 15px;
+		    font-size: 13px;
+		    text-shadow: 1px 1px 1px #a88761;
+		    font-weight: bold;
+		}
+		
+		.eqbasetop {
+		    
+		    -webkit-border-radius: 70px/30px;
+               -moz-border-radius: 70px/30px;
+                 -o-border-radius: 70px/30px;
+                    border-radius: 70px/30px;
+            
+            z-index:11;
+            height: 13px;
+            width:35px;
+            position: absolute;
+            top:0;
+            background: #B2997C;
+		}
+		
+		.eqbar {
+
+		    position:absolute;
+		    left: 5px;
+		    bottom: 20px;
+		    width: 25px;
+		    height: 18px;
+		    min-height:18px;
+		    max-height: 230px;
+		    overflow:hidden;
+		    
+		    background: #ffd65e; /* Old browsers */
+            background: -moz-linear-gradient(left, #ffd65e 0%, #febf04 100%); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, right top, color-stop(0%,#ffd65e), color-stop(100%,#febf04)); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(left, #ffd65e 0%,#febf04 100%); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(left, #ffd65e 0%,#febf04 100%); /* Opera11.10+ */
+            background: -ms-linear-gradient(left, #ffd65e 0%,#febf04 100%); /* IE10+ */
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffd65e', endColorstr='#febf04',GradientType=1 ); /* IE6-9 */
+            background: linear-gradient(left, #ffd65e 0%,#febf04 100%); /* W3C */
+            
+            -webkit-transition: all .4s ease-in; 
+               -moz-transition: all .4s ease-in; 
+                 -o-transition: all .4s ease-in; 
+                    transition: all .4s ease-in;
+            
+        	-webkit-border-radius: 60px/25px;
+               -moz-border-radius: 60px/25px;
+                 -o-border-radius: 60px/25px;
+                    border-radius: 60px/25px;
+            
+            font-size: 12px;
+            text-shadow: 1px 1px 1px #ddd;
+            
+            -webkit-box-shadow: 0 1px 2px #594601;
+               -moz-box-shadow: 0 1px 2px #594601;
+                 -o-box-shadow: 0 1px 2px #594601;
+                    box-shadow: 0 1px 2px #594601;
+            
+		}
+		.eqtop {
+		    -webkit-border-radius: 60px/25px;
+               -moz-border-radius: 60px/25px;
+                 -o-border-radius: 60px/25px;
+                    border-radius: 60px/25px;
+            
+            z-index:10;
+            height: 12px;
+            width:25px;
+            position: absolute;
+            top:0;
+            background: #FFD670;
+		}
+		.eqlist {
+		    position: absolute;
+		    bottom:10px;
+		    width: 40px;
+		    text-align: center;
+		}
+		.eqinfo {
+		    height: 30px;
+		    line-height: 30px;
+		    border-top: 1px solid #555;
+
+		    -webkit-border-radius: 300px/30px;
+		       -moz-border-radius: 300px/30px;
+		         -o-border-radius: 300px/30px;
+		            border-radius: 300px/30px;
+		}
+		        
+        p.label {
+            position: absolute;
+            bottom: -55px;
+            left: -70px;
+            width: 100px;
+            color: #fff;
+            font-family: Arial, Verdana;
+            font-weight: bold;
+            font-size: 13px;
+            text-shadow: 1px 1px 1px #222;
+            text-align: right;
+            
+            -webkit-transform: rotate(-45deg);
+               -moz-transform: rotate(-45deg);
+                 -o-transform: rotate(-45deg);
+                    transform: rotate(-45deg);
+        }
+        div#container {
+            position:relative;
+            padding: 15px 40px
+        }
+		</style> 
+	</head> 
+	<body>
+	<div id="container">
+		<header class="cf">
+			<h1>World Seismic Activity</h1>
+			<h2>M5.0+<br/>Past 7 Days</h2>
+		</header>
+		<section id="regions">
+		</section>
+		<section id="graphs">
+		</section>
+		
+		<footer>
+			<p>Created by <a href="http://twitter.com/bjorkstam/">Mikael Bjorkstam</a> // Data from <a href="http://earthquake.usgs.gov/earthquakes/catalogs/">USGS</a> // <a href="http://github.com/bjorkstam/seismic-infographic/">Source Code</a></p>
+		</footer>
+	</div>
+	</body> 
+</html> 
